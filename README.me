@@ -1,0 +1,231 @@
+python-apache2-server
+
+The project is on deploying a flask server item-catalog project to a linux server on digital ocean.
+
+Step 1:
+
+Create a new droplet on Digital Ocean to start a new server:-
+
+Distribution - Ubuntu 16.04 x64
+Size - As you wish
+Datacenter region - As you wish
+
+Create new ssh-key called catalognew_root.
+Open terminal and run ssh-keygen.
+Enter your file path to save your key. Enter /home/USER_NAME/.ssh/catalognew_root where USER_NAME is your username.
+Set up a passphrase, here i have set it to "password".
+In the DO interface, click on New SSH key and paste the contents of /home/USER_NAME/.ssh/catalognew_root.pub in it. Name the key as catalognew_root. Enter.
+Keep number of droplets to 1.
+Click on Create button.
+
+
+Step 2:
+
+Copy the IP address from Digital Ocean interface. Here it is 174.138.61.230
+
+ssh into the server with the following command.
+
+ssh -i /home/USER_NAME/.ssh/catalognew_root root@174.138.61.230
+# ssh -i /full/path/to/key root@IP
+
+Enter the passphrase of ssh key that you created. then u will be connected.
+
+run  pwd to check everything is working.
+
+
+Step 3:
+
+Update currently installed packages-
+
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get install unattended-upgrades
+sudo unattended-upgrades
+
+
+Step 4:
+
+Follow steps to change ssh port to 2200:-
+
+sudo nano /etc/ssh/sshd_config
+# Locate "Port 22" in that file. Change it to "Port 2200".
+
+Restart ssh service.
+
+sudo service ssh restart
+
+
+
+Step 5:
+
+To configure UFW to allow given connections, follow the steps:
+
+sudo ufw allow 2200
+sudo ufw allow 80
+sudo ufw allow 123
+sudo ufw allow 2200/tcp
+sudo ufw allow ssh
+sudo ufw allow www
+Then enable ufw.
+
+sudo ufw enable
+
+Now ssh port has been changed to 2200. Try exiting the ssh connection and re-connecting with the following command.
+
+ssh -p 2200 -i ~/.ssh/catalog_root root@174.138.61.230
+
+
+Step 6:
+
+Create a user called grader using command:-
+
+sudo adduser grader
+
+Run ls /home/grader to check grader is successfully built or not. If command runs without any error then it means grader is built.
+
+
+Step 7:
+
+Give grader sudo permission :-
+
+touch /etc/sudoers.d/grader
+
+open (sudo nano /etc/sudoers.d/grader) and add the following-
+
+grader ALL=(ALL) NOPASSWD:ALL
+
+
+Step 8:
+
+Create a new ssh key at /home/USER_NAME/.ssh/catalog_grader by following the steps in Step 1.
+
+Copy the contents of catalog_grader.pub file.
+
+On the server terminal, run -
+
+su - grader
+mkdir .ssh
+chmod 700 .ssh
+nano .ssh/authorized_keys
+# paste the contents and save the file
+chmod 644 .ssh/authorized_keys
+Restart the ssh service.
+
+sudo service ssh restart
+
+Now you should be able to login as grader. Exit current connection and do the following.
+
+ssh -p 2200 -i ~/.ssh/catalog_grader grader@174.138.61.230
+
+
+Step 9:
+
+To configure timezone, run the following command.
+
+sudo dpkg-reconfigure tzdata
+Select "None of the above" and then select UTC.
+
+
+Step 10:
+
+To serve Python using Apache and mod_wsgi, install the following components.
+
+sudo apt-get install python3
+sudo apt-get install python3-setuptools
+sudo apt-get install apache2 libapache2-mod-wsgi-py3
+
+Then start apache service.
+sudo service apache2 restart
+
+
+Step 11:
+
+Install postgresql as follows
+sudo apt-get install postgresql
+
+sudo nano /etc/postgresql/VERSION/main/pg_hba.conf
+# VERSION = your postgres version
+# here we have VERSION=9.5
+# sudo nano /etc/postgresql/9.5/main/pg_hba.conf
+
+Create catalog database, run the following to get into psql shell.
+
+sudo -u postgres psql
+
+# inside psql command
+
+create user catalog with password 'password';
+create database catalog with owner catalog;
+
+Then exit psql shell :-
+
+\q
+
+
+Step 12:
+
+Install git, run-
+
+sudo apt-get install git
+
+
+Step 13:
+
+My project is at https://github.com/monikasingh20/item_catalog_project.git
+
+Clone it on server.
+
+cd /var/www
+sudo git clone https://github.com/monikasingh20/item_catalog_project.git catalog
+
+sudo easy_install3 pip
+cd catalog
+sudo pip3 install -r requirements.txt
+python3 database_setup.py
+
+
+Step 14:
+
+sudo nano /etc/apache2/sites-available/catalog.conf
+
+<VirtualHost *:80>
+    ServerName 174.138.61.230
+
+    WSGIScriptAlias / /var/www/catalog/wsgi.py
+
+    <Directory /var/www/catalog>
+        Order allow,deny
+        Allow from all
+    </Directory>
+</VirtualHost>
+
+
+The wsgi file should look like this. application keyword is must
+
+import sys
+sys.path.insert(0, '/var/www/catalog')
+from catalog import app as application
+application.secret_key = 'New secret key. Change it on server'
+
+
+# Now enable the site and restart Apache using following command:-
+
+sudo a2ensite catalog
+sudo service apache2 reload
+Visit the IP to check (http://174.138.61.230). 
+
+In case you find any error, then run following command:
+
+sudo cat /var/log/apache2/error.log
+
+
+
+Step 15:
+
+Now use a domain name for the server.
+
+As i already have domain: 
+
+Replace IP with your domain name in catalog.conf file to 
+
+Run on browser : http://monika.singhpratyush.in)
